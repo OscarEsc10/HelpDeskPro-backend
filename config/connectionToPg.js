@@ -1,41 +1,29 @@
 import pg from 'pg';
-import DATABASE_URL from './envConfig.js';
+import { DATABASE_URL } from './envConfig.js';
 
-const { Pool, Client } = pg;
+const { Pool } = pg;
 
-async function testConnection() {
-  // Test with Pool
-  console.log('Testing database connection with Pool...');
-  const pool = new Pool({
-    connectionString: DATABASE_URL,
-  });
+console.log('🔌 Connecting to the database...');
 
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+});
+
+// Test the connection when this module is imported
+(async () => {
   try {
-    const poolResult = await pool.query('SELECT NOW()');
-    console.log('Pool connection successful. Current time:', poolResult.rows[0].now);
-  } catch (err) {
-    console.error('Pool connection error:', err.message);
-  } finally {
-    await pool.end();
+    const client = await pool.connect();
+    console.log('Successfully connected to the database');
+    
+    // Log database server version
+    const result = await client.query('SELECT version()');
+    console.log(`📊 Database version: ${result.rows[0].version.split(' ').slice(0, 3).join(' ')}`);
+    
+    client.release();
+  } catch (error) {
+    console.error(' Error connecting to the database:', error.message);
+    console.log('💡 Make sure your database is running and the connection string is correct');
   }
+})();
 
-  // Test with Client
-  console.log('\nTesting database connection with Client...');
-  const client = new Client({
-    connectionString: DATABASE_URL,
-  });
-
-  try {
-    await client.connect();
-    const clientResult = await client.query('SELECT NOW()');
-    console.log('Client connection successful. Current time:', clientResult.rows[0].now);
-  } catch (err) {
-    console.error('Client connection error:', err.message);
-  } finally {
-    await client.end();
-  }
-}
-
-testConnection()
-  .then(() => console.log('\nConnection tests completed'))
-  .catch(err => console.error('Test error:', err));
+export default pool;
