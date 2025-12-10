@@ -24,30 +24,40 @@ class Ticket {
   }
 
   static async findAll(filters = {}) {
-    let query = 'SELECT * FROM tickets';
+    let query = `
+      SELECT t.*, u1.name as created_by_name, u2.name as assigned_to_name 
+      FROM tickets t
+      LEFT JOIN users u1 ON t.created_by = u1.id
+      LEFT JOIN users u2 ON t.assigned_to = u2.id
+    `;
     const values = [];
     const conditions = [];
     
     if (filters.status) {
-      conditions.push(`status = $${values.length + 1}`);
+      conditions.push(`t.status = $${values.length + 1}`);
       values.push(filters.status);
     }
     
     if (filters.priority) {
-      conditions.push(`priority = $${values.length + 1}`);
+      conditions.push(`t.priority = $${values.length + 1}`);
       values.push(filters.priority);
     }
     
     if (filters.assignedTo) {
-      conditions.push(`assigned_to = $${values.length + 1}`);
+      conditions.push(`t.assigned_to = $${values.length + 1}`);
       values.push(filters.assignedTo);
+    }
+    
+    if (filters.createdBy) {
+      conditions.push(`t.created_by = $${values.length + 1}`);
+      values.push(filters.createdBy);
     }
     
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
     
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY t.created_at DESC';
     
     const { rows } = await pool.query(query, values);
     return rows;
@@ -62,9 +72,9 @@ class Ticket {
         description = COALESCE($2, description),
         status = COALESCE($3, status),
         priority = COALESCE($4, priority),
-        assigned_to = $5,
+        assigned_to = COALESCE($5, assigned_to),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $6
+      WHERE id = $6 
       RETURNING *;
     `;
     const { rows } = await pool.query(query, [
@@ -72,7 +82,7 @@ class Ticket {
       description, 
       status, 
       priority, 
-      assignedTo || null, 
+      assignedTo, 
       id
     ]);
     return rows[0];
