@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import User from '../models/userModel.js';
+import pool from '../config/connectionToPg.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const SALT_ROUNDS = 10;
@@ -220,6 +221,26 @@ class UserController {
       res.status(500).json({
         success: false,
         error: 'Error deleting user'
+      });
+    }
+  }
+  // Get all users (admin/agent only)
+  static async getAllUsers(req, res) {
+    try {
+      const query = 'SELECT id, email, name, role, created_at, updated_at FROM users ORDER BY created_at DESC';
+      const { rows } = await pool.query(query);
+      
+      res.json({
+        success: true,
+        count: rows.length,
+        data: rows
+      });
+    } catch (error) {
+      console.error('Get all users error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error fetching users',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
